@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MIDNIGHT STUDIO — Listening Room</title>
+  <meta name="description" content="Midnight Studio — an interactive listening room. Scroll the machine, pick a record, drop the needle." />
+  <link rel="preconnect" href="https://i.ytimg.com" crossorigin />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <!-- 3D canvas mounts here -->
+  <div id="app"></div>
+
+  <!-- giant ghost typography -->
+  <div class="ghost-type" id="ghostType" aria-hidden="true">LISTENING&nbsp;ROOM</div>
+
+  <!-- song title reveal -->
+  <div class="song-banner" id="songBanner"></div>
+
+  <!-- journey captions -->
+  <div class="journey" aria-hidden="true">
+    <section class="jcap" data-i="0">
+      <div class="jcap-idx">00</div>
+      <h2>LISTENING ROOM</h2>
+      <p>an infinite tour of the machine — keep scrolling</p>
+    </section>
+    <section class="jcap" data-i="1">
+      <div class="jcap-idx">01</div>
+      <h2>THE HORN</h2>
+      <p>hand-spun brass. every note blooms out of the dark.</p>
+    </section>
+    <section class="jcap" data-i="2">
+      <div class="jcap-idx">02</div>
+      <h2>THE NEEDLE</h2>
+      <p>one groove at a time — nothing skipped, nothing shuffled.</p>
+    </section>
+    <section class="jcap" data-i="3">
+      <div class="jcap-idx">03</div>
+      <h2>THE MOTOR</h2>
+      <p>wound by hand, kept by heart.</p>
+    </section>
+    <section class="jcap" data-i="4">
+      <div class="jcap-idx">04</div>
+      <h2>THE LIBRARY</h2>
+      <p>every upload, pressed to vinyl. pick one — or open all songs.</p>
+    </section>
+  </div>
+
+  <!-- journey progress rail -->
+  <nav class="rail" id="rail" aria-label="Journey sections"></nav>
+
+  <!-- film grain + vignette -->
+  <div class="fx-vignette"></div>
+  <div class="fx-grain"></div>
+
+  <!-- custom cursor -->
+  <div class="cursor-dot" id="cursorDot"></div>
+  <div class="cursor-ring" id="cursorRing"></div>
+
+  <!-- loading screen -->
+  <div id="loader">
+    <div class="loader-inner">
+      <div class="loader-brand">MIDNIGHT<span>STUDIO</span></div>
+      <div class="loader-sub">listening room</div>
+      <div class="loader-bar"><div class="loader-bar-fill" id="loaderFill"></div></div>
+      <div class="loader-row">
+        <div class="loader-stage" id="loaderStage">INITIALIZING</div>
+        <div class="loader-pct" id="loaderPct">0%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- top chrome -->
+  <header class="chrome chrome-top">
+    <div class="brand">
+      <div class="brand-mark">M</div>
+      <div class="brand-text">MIDNIGHT<span>STUDIO</span></div>
+    </div>
+    <nav class="top-links">
+      <a href="https://www.youtube.com/@MidnightStudioORG" target="_blank" rel="noopener" class="yt-link">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4L15.8 12z"/></svg>
+        <span>YouTube</span>
+      </a>
+    </nav>
+  </header>
+
+  <!-- hint -->
+  <div class="hint" id="hint">scroll to explore · pick a record to play</div>
+
+  <!-- live badge -->
+  <div class="live-badge" id="liveBadge" title="Shelf syncs with the channel automatically">
+    <span class="live-dot"></span><span id="liveText">SYNCED WITH CHANNEL</span>
+  </div>
+
+  <!-- browse all songs -->
+  <button class="browse-btn" id="btnBrowse">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    <span>ALL SONGS</span><em id="browseCount"></em>
+  </button>
+
+  <!-- song drawer -->
+  <aside class="drawer" id="drawer" aria-label="All songs">
+    <div class="drawer-head">
+      <span class="drawer-title">THE LIBRARY</span>
+      <span class="drawer-count" id="drawerCount"></span>
+      <button class="drawer-close" id="drawerClose" aria-label="Close">✕</button>
+    </div>
+    <div class="drawer-list" id="drawerList"></div>
+  </aside>
+
+  <!-- shelf pager (visible in the library section) -->
+  <div class="shelf-nav" id="shelfNav">
+    <button class="nav-btn" id="pagePrev" aria-label="Previous shelf page">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg>
+    </button>
+    <span class="nav-label" id="pageLabel">1 / 1</span>
+    <button class="nav-btn" id="pageNext" aria-label="Next shelf page">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="m8.6 16.6 1.4 1.4 6-6-6-6-1.4 1.4 4.6 4.6z"/></svg>
+    </button>
+  </div>
+
+  <!-- now playing bar -->
+  <footer class="nowplaying" id="nowPlaying">
+    <div class="np-left">
+      <div class="np-art" id="npArt"></div>
+      <div class="np-meta">
+        <div class="np-title" id="npTitle">—</div>
+        <div class="np-channel">Midnight Studio</div>
+      </div>
+    </div>
+    <div class="np-controls">
+      <button class="np-btn" id="btnPrev" aria-label="Previous">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6L18 6v12z"/></svg>
+      </button>
+      <button class="np-btn np-play" id="btnPlay" aria-label="Play / pause">
+        <svg id="icoPlay" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="icoPause" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="display:none"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+      </button>
+      <button class="np-btn" id="btnNext" aria-label="Next">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M16 6h2v12h-2zM6 18V6l8.5 6z"/></svg>
+      </button>
+    </div>
+    <div class="np-right">
+      <div class="np-eq" id="npEq"><i></i><i></i><i></i><i></i></div>
+      <button class="np-btn np-video-toggle" id="btnVideo" aria-label="Show video">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11z"/></svg>
+      </button>
+    </div>
+  </footer>
+
+  <!-- youtube player card (kept visible per YT policy; collapsible) -->
+  <div class="player-card" id="playerCard">
+    <div class="player-frame"><div id="ytPlayer"></div></div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
