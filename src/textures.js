@@ -11,7 +11,7 @@ function canvas(w, h) {
 function toTexture(c, { srgb = true } = {}) {
   const t = new THREE.CanvasTexture(c);
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 8;
+  t.anisotropy = 16; // keeps cover text sharp at oblique shelf angles
   return t;
 }
 
@@ -163,7 +163,7 @@ function drawSleeve(ctx, S, video, img, accent) {
     let sw = img.width, sh = img.height, sx = 0, sy = 0;
     if (ar > target) { sw = img.height * target; sx = (img.width - sw) / 2; }
     else { sh = img.width / target; sy = (img.height - sh) / 2; }
-    ctx.filter = 'saturate(1.02) brightness(1.08) contrast(1.08)';
+    ctx.filter = 'saturate(1.05) brightness(1.16) contrast(1.06)';
     ctx.drawImage(img, sx, sy, sw, sh, pad, artY, S - pad * 2, artH);
     ctx.filter = 'none';
     // bottom fade into card
@@ -206,10 +206,10 @@ function drawSleeve(ctx, S, video, img, accent) {
 
   // title
   const title = cleanTitle(video.title).toUpperCase();
-  ctx.fillStyle = '#f2eee4';
+  ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'left';
-  let fs = S * 0.06;
-  ctx.font = `500 ${fs}px Arial`;
+  let fs = S * 0.072;
+  ctx.font = `700 ${fs}px Arial`;
   let line1 = title, line2 = '';
   if (ctx.measureText(title).width > S - pad * 2) {
     const words = title.split(' ');
@@ -252,7 +252,7 @@ function drawSleeve(ctx, S, video, img, accent) {
 
 /** Sleeve cover texture; repaints once the thumbnail loads. */
 export function sleeveTexture(video, index) {
-  const S = 512;
+  const S = 1024;
   const [c, ctx] = canvas(S, S);
   const accent = accentFor(index);
   drawSleeve(ctx, S, video, null, accent);

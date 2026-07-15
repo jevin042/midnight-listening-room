@@ -606,7 +606,10 @@ function animate() {
 
   coneMat.uniforms.uOpacity.value = 0.028 + energy * 0.022 + Math.sin(t * 2.1) * 0.004;
   hornGlow.intensity = 2.2 + energy * 5;
-  rgbShift.uniforms.amount.value = 0.0013 + energy * 0.0012;
+  // chromatic aberration: subtle, and fades out entirely near the library
+  // so the cover text stays crisp and readable
+  const libFade = Math.min(1, wrapDist(scrollT, 4));
+  rgbShift.uniforms.amount.value = (0.0005 + energy * 0.0005) * libFade;
 
   updateEnergy(dt);
   gramophone.update(dt, energy);
