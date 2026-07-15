@@ -16,9 +16,13 @@ import { ChannelFeed, Jukebox } from './youtube.js';
 import { cleanTitle, thumbUrl } from './data.js';
 
 /* ------------------------------------------------ renderer / scene */
+// phones get a lighter pipeline: no mirror floor, no RGB-shift pass, smaller
+// shadows, fewer particles, capped pixel ratio — same look, playable speed
+const MOBILE = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 820;
+
 const app = document.getElementById('app');
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, MOBILE ? 1.5 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -42,7 +46,7 @@ scene.add(new THREE.HemisphereLight(0x28303c, 0x0a0806, 0.5));
 const key = new THREE.SpotLight(0xffd9a0, 320, 30, 0.42, 0.55, 1.6);
 key.position.set(1.8, 7.2, 3.2);
 key.castShadow = true;
-key.shadow.mapSize.set(2048, 2048);
+key.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048);
 key.shadow.bias = -0.0004;
 key.shadow.radius = 6;
 scene.add(key);
@@ -51,10 +55,10 @@ const rimL = new THREE.SpotLight(0x7fa0d8, 140, 30, 0.5, 0.7, 1.8);
 rimL.position.set(-5.5, 4.2, -3.5);
 scene.add(rimL);
 
-const shelfLight = new THREE.SpotLight(0xffe6c0, 110, 20, 0.38, 0.75, 1.8);
+const shelfLight = new THREE.SpotLight(0xffe6c0, 75, 20, 0.38, 0.8, 1.8);
 shelfLight.position.set(3.6, 5.8, 3.6);
 shelfLight.castShadow = true;
-shelfLight.shadow.mapSize.set(1024, 1024);
+shelfLight.shadow.mapSize.set(MOBILE ? 512 : 1024, MOBILE ? 512 : 1024);
 shelfLight.shadow.bias = -0.0004;
 scene.add(shelfLight);
 
@@ -63,19 +67,22 @@ hornGlow.position.set(-1.2, 2.0, 0.2);
 scene.add(hornGlow);
 
 /* ------------------------------------------------ floor: mirror + glaze */
-const mirror = new Reflector(new THREE.CircleGeometry(30, 64), {
-  textureWidth: Math.floor(window.innerWidth * 0.75),
-  textureHeight: Math.floor(window.innerHeight * 0.75),
-  color: 0x777777,
-});
-mirror.rotation.x = -Math.PI / 2;
-mirror.position.y = -0.002;
-scene.add(mirror);
+if (!MOBILE) {
+  const mirror = new Reflector(new THREE.CircleGeometry(30, 64), {
+    textureWidth: Math.floor(window.innerWidth * 0.75),
+    textureHeight: Math.floor(window.innerHeight * 0.75),
+    color: 0x777777,
+  });
+  mirror.rotation.x = -Math.PI / 2;
+  mirror.position.y = -0.002;
+  scene.add(mirror);
+}
 
 const glaze = new THREE.Mesh(
   new THREE.CircleGeometry(30, 64),
   new THREE.MeshStandardMaterial({
-    color: 0x0d0d0f, roughness: 0.72, metalness: 0.08, transparent: true, opacity: 0.85,
+    color: 0x0d0d0f, roughness: 0.72, metalness: 0.08,
+    transparent: !MOBILE, opacity: MOBILE ? 1 : 0.85,
   }),
 );
 glaze.rotation.x = -Math.PI / 2;
@@ -104,7 +111,7 @@ lightCone.position.set(-1.3, 3.1, -0.1);
 scene.add(lightCone);
 
 /* dust */
-const DUST_N = 420;
+const DUST_N = MOBILE ? 160 : 420;
 const dustGeo = new THREE.BufferGeometry();
 {
   const pos = new Float32Array(DUST_N * 3);
@@ -157,13 +164,16 @@ const discOut = makeFlyingDisc();
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth, window.innerHeight), 0.3, 0.6, 0.9,
+  new THREE.Vector2(window.innerWidth, window.innerHeight), MOBILE ? 0.22 : 0.3, 0.6, 0.9,
 );
 composer.addPass(bloom);
-const rgbShift = new ShaderPass(RGBShiftShader);
-rgbShift.uniforms.amount.value = 0.0013;
-rgbShift.uniforms.angle.value = 0.6;
-composer.addPass(rgbShift);
+let rgbShift = null;
+if (!MOBILE) {
+  rgbShift = new ShaderPass(RGBShiftShader);
+  rgbShift.uniforms.amount.value = 0;
+  rgbShift.uniforms.angle.value = 0.6;
+  composer.addPass(rgbShift);
+}
 composer.addPass(new OutputPass());
 
 /* ------------------------------------------------ journey (infinite scroll) */
@@ -513,8 +523,19 @@ renderer.compileAsync(scene, camera).catch(() => {}).finally(() => {
     onComplete: reveal,
   });
 });
+// failsafe: never leave anyone stuck on the loader (slow phones, stalled compile)
+setTimeout(() => { setProgress(1); reveal(); }, 9000);
 
+// if the GPU resets (common after backgrounding on mobile), recover cleanly
+renderer.domElement.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  location.reload();
+});
+
+let revealed = false;
 function reveal() {
+  if (revealed) return;
+  revealed = true;
   ui.loader.classList.add('done');
   document.body.classList.add('ready');
   ui.hint.classList.add('show');
@@ -606,10 +627,12 @@ function animate() {
 
   coneMat.uniforms.uOpacity.value = 0.028 + energy * 0.022 + Math.sin(t * 2.1) * 0.004;
   hornGlow.intensity = 2.2 + energy * 5;
-  // chromatic aberration: subtle, and fades out entirely near the library
+  // chromatic aberration: subtle, and OFF anywhere near the library
   // so the cover text stays crisp and readable
-  const libFade = Math.min(1, wrapDist(scrollT, 4));
-  rgbShift.uniforms.amount.value = (0.0005 + energy * 0.0005) * libFade;
+  if (rgbShift) {
+    const libFade = THREE.MathUtils.clamp((wrapDist(scrollT, 4) - 0.6) / 0.4, 0, 1);
+    rgbShift.uniforms.amount.value = (0.0004 + energy * 0.0004) * libFade;
+  }
 
   updateEnergy(dt);
   gramophone.update(dt, energy);

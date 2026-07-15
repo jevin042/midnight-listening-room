@@ -61,6 +61,29 @@ export function dustSprite(size = 64) {
 const PALETTE = ['#d8a84e', '#b9563f', '#5f7a8f', '#7a6a8f', '#5f8f6e', '#8f5f5f'];
 export const accentFor = (i) => PALETTE[i % PALETTE.length];
 
+// Try the full-res thumbnail first; YouTube serves a 120px placeholder when
+// maxres doesn't exist, so fall back to hqdefault on tiny results.
+function loadCoverImage(video, onload) {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  let fellBack = false;
+  img.onload = () => {
+    if (img.naturalWidth < 300 && !fellBack) {
+      fellBack = true;
+      img.src = thumbUrl(video.id, 'hqdefault');
+      return;
+    }
+    onload(img);
+  };
+  img.onerror = () => {
+    if (!fellBack) {
+      fellBack = true;
+      img.src = thumbUrl(video.id, 'hqdefault');
+    }
+  };
+  img.src = thumbUrl(video.id, 'maxresdefault');
+}
+
 /* ------------------------------------------------------------------ */
 /* Vinyl record face — grooves + center label (thumbnail if given)     */
 /* ------------------------------------------------------------------ */
@@ -134,10 +157,10 @@ export function discFaceTexture(video, index = 0) {
   const tex = toTexture(c);
   if (video) {
     discCache.set(video.id, tex);
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => { drawVinylFace(ctx, size, video, img, accent); tex.needsUpdate = true; };
-    img.src = thumbUrl(video.id);
+    loadCoverImage(video, (img) => {
+      drawVinylFace(ctx, size, video, img, accent);
+      tex.needsUpdate = true;
+    });
   }
   return tex;
 }
@@ -257,10 +280,10 @@ export function sleeveTexture(video, index) {
   const accent = accentFor(index);
   drawSleeve(ctx, S, video, null, accent);
   const tex = toTexture(c);
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = () => { drawSleeve(ctx, S, video, img, accent); tex.needsUpdate = true; };
-  img.src = thumbUrl(video.id);
+  loadCoverImage(video, (img) => {
+    drawSleeve(ctx, S, video, img, accent);
+    tex.needsUpdate = true;
+  });
   return tex;
 }
 
