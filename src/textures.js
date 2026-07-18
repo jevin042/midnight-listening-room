@@ -186,7 +186,9 @@ function drawSleeve(ctx, S, video, img, accent) {
     let sw = img.width, sh = img.height, sx = 0, sy = 0;
     if (ar > target) { sw = img.height * target; sx = (img.width - sw) / 2; }
     else { sh = img.width / target; sy = (img.height - sh) / 2; }
-    ctx.filter = 'saturate(1.05) brightness(1.16) contrast(1.06)';
+    // no brightness boost — the sleeve is self-lit, and boosting here clipped
+    // bright thumbnails to pure white before lighting was even applied
+    ctx.filter = 'saturate(1.02) brightness(0.94) contrast(1.02)';
     ctx.drawImage(img, sx, sy, sw, sh, pad, artY, S - pad * 2, artH);
     ctx.filter = 'none';
     // bottom fade into card
@@ -210,18 +212,7 @@ function drawSleeve(ctx, S, video, img, accent) {
   }
   ctx.restore();
 
-  // vinyl peeking out the top-right of the art (subtle depth cue)
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(pad, artY, S - pad * 2, artH);
-  ctx.clip();
-  ctx.fillStyle = 'rgba(8,8,10,0.85)';
-  ctx.beginPath(); ctx.arc(S * 0.82, artY + artH * 0.16, S * 0.16, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-  for (const rr of [0.1, 0.12, 0.14]) {
-    ctx.beginPath(); ctx.arc(S * 0.82, artY + artH * 0.16, S * rr, 0, Math.PI * 2); ctx.stroke();
-  }
-  ctx.restore();
+  // (no vinyl-peek decoration — it blotted a dark disc over the artwork)
 
   // accent rule
   ctx.fillStyle = accent;

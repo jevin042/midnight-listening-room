@@ -62,8 +62,10 @@ scene.add(rimL);
 // No spotlight on the shelf — it blew out the covers with glare. The sleeves
 // are self-lit (emissive artwork), so they stay readable; this whisper-dim,
 // shadowless fill only reveals the wooden frame around them.
-const shelfLight = new THREE.PointLight(0xffe6c0, 5, 12, 2.2);
-shelfLight.position.set(2.6, 2.6, 2.4);
+// centred on the shelf and further back so it falls off evenly instead of
+// hotspotting the right-hand covers
+const shelfLight = new THREE.PointLight(0xffe6c0, 4, 16, 1.5);
+shelfLight.position.set(MOBILE ? 1.35 : 1.95, 2.2, 3.6);
 scene.add(shelfLight);
 
 const hornGlow = new THREE.PointLight(0xd8a84e, 3, 4, 2);

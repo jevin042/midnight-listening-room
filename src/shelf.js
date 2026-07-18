@@ -74,7 +74,7 @@ export function createShelf() {
         // to sit just under the bloom threshold so it can never blow out.
         // roughness 1 + no env reflection = zero specular glare.
         map: cover, roughness: 1, metalness: 0, envMapIntensity: 0,
-        emissive: 0xffffff, emissiveMap: cover, emissiveIntensity: 0.78,
+        emissive: 0xffffff, emissiveMap: cover, emissiveIntensity: 0.6,
       }), // +z front
       card.clone(),                                                    // -z
     ];
