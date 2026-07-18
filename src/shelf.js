@@ -70,10 +70,11 @@ export function createShelf() {
       new THREE.MeshStandardMaterial({ map: spine, roughness: 0.92 }), // +x (right edge)
       card, card.clone(), card.clone(),                                // -x +y -y
       new THREE.MeshStandardMaterial({
-        // self-lit: emissive carries the artwork so spotlights can't wash it
-        // out and shelf shadows can't bury it — always evenly readable
-        map: cover, roughness: 0.95, metalness: 0, envMapIntensity: 0.15,
-        emissive: 0xffffff, emissiveMap: cover, emissiveIntensity: 0.42,
+        // Fully self-lit poster: the artwork's own emission carries it, tuned
+        // to sit just under the bloom threshold so it can never blow out.
+        // roughness 1 + no env reflection = zero specular glare.
+        map: cover, roughness: 1, metalness: 0, envMapIntensity: 0,
+        emissive: 0xffffff, emissiveMap: cover, emissiveIntensity: 0.78,
       }), // +z front
       card.clone(),                                                    // -z
     ];

@@ -38,7 +38,8 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.25;
 
-const camera = new THREE.PerspectiveCamera(34, window.innerWidth / window.innerHeight, 0.1, 60);
+// wider lens on phones so the tall portrait frame captures the whole subject
+const camera = new THREE.PerspectiveCamera(MOBILE ? 52 : 34, window.innerWidth / window.innerHeight, 0.1, 60);
 
 /* ------------------------------------------------ lights */
 scene.add(new THREE.HemisphereLight(0x28303c, 0x0a0806, 0.5));
@@ -49,17 +50,20 @@ key.castShadow = true;
 key.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048);
 key.shadow.bias = -0.0004;
 key.shadow.radius = 6;
+// aim the key spotlight at the gramophone so it stops washing over the shelf
+key.target.position.set(MOBILE ? -1.05 : -1.5, 0.9, 0.1);
+scene.add(key.target);
 scene.add(key);
 
 const rimL = new THREE.SpotLight(0x7fa0d8, 140, 30, 0.5, 0.7, 1.8);
 rimL.position.set(-5.5, 4.2, -3.5);
 scene.add(rimL);
 
-const shelfLight = new THREE.SpotLight(0xffe6c0, 75, 20, 0.38, 0.8, 1.8);
-shelfLight.position.set(3.6, 5.8, 3.6);
-shelfLight.castShadow = true;
-shelfLight.shadow.mapSize.set(MOBILE ? 512 : 1024, MOBILE ? 512 : 1024);
-shelfLight.shadow.bias = -0.0004;
+// No spotlight on the shelf — it blew out the covers with glare. The sleeves
+// are self-lit (emissive artwork), so they stay readable; this whisper-dim,
+// shadowless fill only reveals the wooden frame around them.
+const shelfLight = new THREE.PointLight(0xffe6c0, 5, 12, 2.2);
+shelfLight.position.set(2.6, 2.6, 2.4);
 scene.add(shelfLight);
 
 const hornGlow = new THREE.PointLight(0xd8a84e, 3, 4, 2);
@@ -133,15 +137,15 @@ scene.add(dust);
 
 /* ------------------------------------------------ actors */
 const gramophone = createGramophone();
-gramophone.group.position.set(-1.5, 0, 0.1);
+gramophone.group.position.set(MOBILE ? -1.05 : -1.5, 0, 0.1);
 gramophone.group.rotation.y = 0.35;
-gramophone.group.scale.setScalar(0.68);
+gramophone.group.scale.setScalar(MOBILE ? 0.6 : 0.68);
 scene.add(gramophone.group);
 
 const shelf = createShelf();
-shelf.group.position.set(1.95, 0.02, -0.2);
-shelf.group.rotation.y = -0.38;
-shelf.group.scale.setScalar(0.82);
+shelf.group.position.set(MOBILE ? 1.35 : 1.95, 0.02, -0.2);
+shelf.group.rotation.y = MOBILE ? -0.3 : -0.38;
+shelf.group.scale.setScalar(MOBILE ? 0.74 : 0.82);
 scene.add(shelf.group);
 
 /* flying discs (sleeve → platter, platter → sleeve) */
@@ -164,7 +168,9 @@ const discOut = makeFlyingDisc();
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth, window.innerHeight), MOBILE ? 0.22 : 0.3, 0.6, 0.9,
+  // threshold 1.0 leaves headroom so the self-lit covers can never bloom;
+  // the brass horn is far brighter and still glows
+  new THREE.Vector2(window.innerWidth, window.innerHeight), MOBILE ? 0.22 : 0.3, 0.6, 1.0,
 );
 composer.addPass(bloom);
 let rgbShift = null;
@@ -178,7 +184,14 @@ composer.addPass(new OutputPass());
 
 /* ------------------------------------------------ journey (infinite scroll) */
 const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
-const SECTIONS = [
+// portrait phones get pulled-back, re-centered framing so each subject fits
+const SECTIONS = MOBILE ? [
+  { label: 'ROOM',    pos: v3(0.1, 1.55, 9.2),  look: v3(0.1, 1.1, 0) },
+  { label: 'HORN',    pos: v3(-0.95, 1.9, 3.9), look: v3(-1.0, 1.55, 0.15) },
+  { label: 'NEEDLE',  pos: v3(-0.8, 1.2, 3.1),  look: v3(-1.05, 0.6, 0.25) },
+  { label: 'MOTOR',   pos: v3(0.15, 1.05, 3.5), look: v3(-0.7, 0.48, 0.05) },
+  { label: 'LIBRARY', pos: v3(1.35, 1.45, 5.6), look: v3(1.35, 1.25, -0.2) },
+] : [
   { label: 'ROOM',    pos: v3(0.15, 1.7, 7.4),  look: v3(0.15, 1.05, 0) },
   { label: 'HORN',    pos: v3(-0.1, 2.2, 3.4),  look: v3(-1.15, 1.7, 0.2) },
   { label: 'NEEDLE',  pos: v3(-0.7, 1.6, 2.4),  look: v3(-1.5, 0.62, 0.3) },
@@ -205,15 +218,29 @@ window.addEventListener('wheel', (e) => {
   scrollTarget += THREE.MathUtils.clamp(e.deltaY, -140, 140) * 0.0016;
 }, { passive: true });
 
-// touch drag → scroll
-let touchY = null;
-window.addEventListener('touchstart', (e) => { touchY = e.touches[0].clientY; }, { passive: true });
+// touch drag → scroll, and short taps → select a record
+let touchY = null, touchStart = null, touchMoved = 0;
+window.addEventListener('touchstart', (e) => {
+  touchY = e.touches[0].clientY;
+  touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+  touchMoved = 0;
+}, { passive: true });
 window.addEventListener('touchmove', (e) => {
   if (touchY === null || e.target.closest('.drawer')) return;
-  scrollTarget += (touchY - e.touches[0].clientY) * 0.004;
+  const dy = touchY - e.touches[0].clientY;
+  touchMoved += Math.abs(dy);
+  scrollTarget += dy * 0.004;
   touchY = e.touches[0].clientY;
 }, { passive: true });
-window.addEventListener('touchend', () => { touchY = null; });
+window.addEventListener('touchend', (e) => {
+  // a short, still touch that isn't on the UI is a tap → try to play a record
+  const dur = touchStart ? Date.now() - touchStart.t : 999;
+  const onUI = e.target.closest('.drawer, .nowplaying, .player-card, .chrome, .yt-link, .shelf-nav, .browse-btn, .rail');
+  if (touchStart && touchMoved < 16 && dur < 500 && !onUI) {
+    tapSelect(touchStart.x, touchStart.y);
+  }
+  touchY = null; touchStart = null;
+});
 
 // arrow keys
 window.addEventListener('keydown', (e) => {
@@ -456,15 +483,37 @@ window.addEventListener('pointermove', (e) => {
   cursor.move(e.clientX, e.clientY);
 });
 
-window.addEventListener('click', (e) => {
-  if (e.target.closest('.nowplaying, .player-card, .chrome, .yt-link, .shelf-nav, .drawer, .browse-btn, .rail')) return;
+// select the record under (clientX, clientY); tolerant of near-misses so
+// small sleeves are still tappable on a phone
+function tapSelect(clientX, clientY) {
+  const meshes = shelf.getMeshes();
+  if (!meshes.length) return;
   const p = new THREE.Vector2(
-    (e.clientX / window.innerWidth) * 2 - 1,
-    -(e.clientY / window.innerHeight) * 2 + 1,
+    (clientX / window.innerWidth) * 2 - 1,
+    -(clientY / window.innerHeight) * 2 + 1,
   );
   raycaster.setFromCamera(p, camera);
-  const hit = raycaster.intersectObjects(shelf.getMeshes(), false)[0]?.object;
+  let hit = raycaster.intersectObjects(meshes, false)[0]?.object;
+  // fallback: nearest sleeve on screen within a finger-friendly radius
+  if (!hit?.userData.video) {
+    let best = null, bestD = 70; // px
+    for (const m of meshes) {
+      const s = m.getWorldPosition(new THREE.Vector3()).project(camera);
+      const sx = (s.x + 1) / 2 * window.innerWidth;
+      const sy = (1 - s.y) / 2 * window.innerHeight;
+      const d = Math.hypot(sx - clientX, sy - clientY);
+      if (d < bestD) { bestD = d; best = m; }
+    }
+    hit = best;
+  }
   if (hit?.userData.video) playVideo(hit.userData.video);
+}
+
+window.addEventListener('click', (e) => {
+  if (e.target.closest('.nowplaying, .player-card, .chrome, .yt-link, .shelf-nav, .drawer, .browse-btn, .rail')) return;
+  // touch devices handle selection via touchend (avoids the synthetic double-fire)
+  if (MOBILE) return;
+  tapSelect(e.clientX, e.clientY);
 });
 
 function updateRaycast() {
@@ -553,7 +602,8 @@ let aspectPull = 1;
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   camera.aspect = w / h;
-  aspectPull = camera.aspect < 1 ? 1.45 : camera.aspect < 1.5 ? 1.16 : 1;
+  // mobile sections are pre-framed for portrait, so no extra pull-back there
+  aspectPull = MOBILE ? 1 : (camera.aspect < 1 ? 1.45 : camera.aspect < 1.5 ? 1.16 : 1);
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
   composer.setSize(w, h);
@@ -575,7 +625,7 @@ function updateEnergy(dt) {
 }
 
 /* debug hook */
-window.__ms = { shelf, camera, feed, playVideo, gramophone, scene, step, get scrollT() { return scrollT; }, setScroll: (v) => { scrollTarget = v; } };
+window.__ms = { shelf, camera, feed, playVideo, gramophone, scene, step, renderer, composer, get scrollT() { return scrollT; }, setScroll: (v) => { scrollTarget = v; } };
 
 /* ------------------------------------------------ loop */
 const clock = new THREE.Clock();
